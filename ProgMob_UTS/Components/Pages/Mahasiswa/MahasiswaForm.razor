@@ -1,0 +1,199 @@
+@page "/mahasiswa/tambah"
+@page "/mahasiswa/edit/{Id:int}"
+@inject MahasiswaService MahasiswaService
+@inject DosenService DosenService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <h2 class="h4 mb-0">@(IsEditMode ? "Edit Data Mahasiswa" : "Tambah Data Mahasiswa")</h2>
+</div>
+
+<div class="section-panel" style="max-width: 600px;">
+    @if (isLoading)
+    {
+        <div class="py-3 text-muted">
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            Sedang memuat formulir dan daftar dosen wali...
+        </div>
+    }
+    else if (isNotFound)
+    {
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" @onclick="KembaliKeDaftar">
+            Kembali ke Daftar Mahasiswa
+        </button>
+    }
+    else
+    {
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger py-2" role="alert">
+                @errorMessage
+            </div>
+        }
+
+        @if (daftarDosenWali.Count == 0)
+        {
+            <div class="alert alert-warning" role="alert">
+                Belum ada data dosen yang tersedia di database untuk dipilih sebagai dosen wali.
+                Silakan tambahkan data dosen terlebih dahulu pada menu <strong>Data Dosen</strong>.
+            </div>
+        }
+
+        <EditForm Model="formModel" OnValidSubmit="SimpanMahasiswaAsync">
+            <DataAnnotationsValidator />
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold" for="nimInput">NIM</label>
+                <InputText id="nimInput" class="form-control" @bind-Value="formModel.Nim"
+                           placeholder="Contoh: 72240672" disabled="@isSubmitting" />
+                <ValidationMessage For="@(() => formModel.Nim)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold" for="namaMahasiswaInput">Nama Mahasiswa</label>
+                <InputText id="namaMahasiswaInput" class="form-control" @bind-Value="formModel.NamaMahasiswa"
+                           placeholder="Contoh: Nathaniel Huang" disabled="@isSubmitting" />
+                <ValidationMessage For="@(() => formModel.NamaMahasiswa)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold" for="emailMahasiswaInput">Email (@("@student.kampus.ac.id"))</label>
+                <InputText id="emailMahasiswaInput" type="email" class="form-control" @bind-Value="formModel.Email"
+                           placeholder="Contoh: nathaniel@student.kampus.ac.id" disabled="@isSubmitting" />
+                <ValidationMessage For="@(() => formModel.Email)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold" for="angkatanInput">Angkatan (2020–2026)</label>
+                <InputNumber id="angkatanInput" class="form-control" @bind-Value="formModel.Angkatan"
+                             min="2020" max="2026" disabled="@isSubmitting" />
+                <ValidationMessage For="@(() => formModel.Angkatan)" />
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-semibold" for="dosenWaliSelect">Dosen Wali</label>
+                <InputSelect id="dosenWaliSelect" class="form-select" @bind-Value="formModel.DosenId" disabled="@isSubmitting">
+                    <option value="0">-- Pilih Dosen Wali --</option>
+                    @foreach (var dosen in daftarDosenWali)
+                    {
+                        <option value="@dosen.DosenId">@dosen.NamaDosen (@dosen.Nidn - @dosen.Prodi)</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="@(() => formModel.DosenId)" />
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" disabled="@(isSubmitting || daftarDosenWali.Count == 0)">
+                    @(isSubmitting ? "Menyimpan..." : "Simpan")
+                </button>
+                <button type="button" class="btn btn-outline-secondary" disabled="@isSubmitting" @onclick="KembaliKeDaftar">
+                    Batal
+                </button>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// Parameter rute opsional. Jika bernilai lebih dari 0, halaman berjalan dalam mode Edit Mahasiswa.
+    /// </summary>
+    [Parameter]
+    public int? Id { get; set; }
+
+    private bool IsEditMode => Id.HasValue && Id.Value > 0;
+    private MahasiswaModel formModel = new() { Angkatan = 2024 };
+    private List<DosenModel> daftarDosenWali = new();
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private bool isNotFound = false;
+    private string errorMessage = string.Empty;
+
+    /// <summary>
+    /// Memuat daftar dosen untuk pilihan dropdown Dosen Wali dari API dosen,
+    /// serta memuat data mahasiswa apabila halaman dibuka dalam mode Edit.
+    /// </summary>
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        isNotFound = false;
+
+        // Mengambil daftar dosen secara dinamis melalui Web API dosen untuk mengisi dropdown Dosen Wali.
+        var dosenResult = await DosenService.GetAllAsync();
+        if (!dosenResult.Success)
+        {
+            errorMessage = dosenResult.Message;
+            isLoading = false;
+            return;
+        }
+
+        daftarDosenWali = dosenResult.Data ?? new List<DosenModel>();
+
+        if (IsEditMode && Id.HasValue)
+        {
+            // Mengambil data mahasiswa yang akan diubah berdasarkan ID.
+            var mhsResult = await MahasiswaService.GetByIdAsync(Id.Value);
+            if (mhsResult.Success && mhsResult.Data != null)
+            {
+                formModel = mhsResult.Data; 
+            }
+            else
+            {
+                isNotFound = true;
+                errorMessage = mhsResult.Message;
+            }
+        }
+        else
+        {
+            formModel = new MahasiswaModel { Angkatan = 2024, DosenId = 0 };
+        }
+
+        isLoading = false;
+    }
+
+    /// <summary>
+    /// Mengirimkan data mahasiswa ke Web API (POST untuk tambah baru atau PUT untuk pembaruan)
+    /// setelah validasi formulir berhasil.
+    /// </summary>
+    private async Task SimpanMahasiswaAsync()
+    {
+        // Menonaktifkan tombol Simpan selama pengiriman data berlangsung.
+        isSubmitting = true;
+        errorMessage = string.Empty;
+
+        ApiResult<MahasiswaModel> result;
+        if (IsEditMode && Id.HasValue)
+        {
+            result = await MahasiswaService.UpdateAsync(Id.Value, formModel);
+        }
+        else
+        {
+            result = await MahasiswaService.CreateAsync(formModel);
+        }
+
+        isSubmitting = false;
+
+        if (result.Success)
+        {
+            // Mengarahkan kembali ke halaman daftar mahasiswa setelah penyimpanan berhasil.
+            Navigation.NavigateTo("/mahasiswa");
+        }
+        else
+        {
+            // Menampilkan pesan kesalahan dari backend (mis. NIM duplikat atau dosen wali tidak valid).
+            errorMessage = result.Message;
+        }
+    }
+
+    /// <summary>
+    /// Membatalkan pengisian formulir dan kembali ke halaman daftar mahasiswa.
+    /// </summary>
+    private void KembaliKeDaftar()
+    {
+        Navigation.NavigateTo("/mahasiswa");
+    }
+}

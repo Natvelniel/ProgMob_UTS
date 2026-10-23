@@ -1,0 +1,223 @@
+@page "/mahasiswa"
+@inject MahasiswaService MahasiswaService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <h2 class="h4 mb-0">Data Mahasiswa</h2>
+    <button type="button" class="btn btn-primary btn-sm" @onclick="BukaFormTambah">
+        + Tambah Mahasiswa
+    </button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(statusMessage))
+{
+    <div class="alert @(isErrorStatus ? "alert-danger" : "alert-success") py-2" role="alert">
+        @statusMessage
+    </div>
+}
+
+@if (mahasiswaYangAkanDihapus != null)
+{
+    <div class="confirm-box">
+        <p class="mb-2">
+            Apakah Anda yakin ingin menghapus mahasiswa
+            <strong>@mahasiswaYangAkanDihapus.NamaMahasiswa</strong> (NIM: <code>@mahasiswaYangAkanDihapus.Nim</code>)?
+        </p>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-danger btn-sm" disabled="@isDeleting" @onclick="KonfirmasiHapusMahasiswa">
+                @(isDeleting ? "Menghapus..." : "Ya, Hapus")
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" disabled="@isDeleting" @onclick="BatalHapusMahasiswa">
+                Batal
+            </button>
+        </div>
+    </div>
+}
+
+<div class="section-panel">
+    @if (isLoading)
+    {
+        <div class="py-3 text-muted">
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            Sedang memuat data mahasiswa dari server API...
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(apiErrorMessage))
+    {
+        <div class="alert alert-danger mb-3" role="alert">
+            @apiErrorMessage
+        </div>
+        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="LoadMahasiswaAsync">
+            Coba Muat Ulang
+        </button>
+    }
+    else if (mahasiswaList.Count == 0)
+    {
+        <div class="py-3 text-muted">
+            Belum ada data mahasiswa yang tersimpan. Silakan klik tombol <strong>Tambah Mahasiswa</strong> untuk menambahkan data.
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>NIM</th>
+                        <th>Nama Mahasiswa</th>
+                        <th>Email</th>
+                        <th>Angkatan</th>
+                        <th>Dosen Wali</th>
+                        <th style="width: 210px;">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var mhs in mahasiswaList)
+                    {
+                        <tr>
+                            <td>@mhs.Nim</td>
+                            <td>@mhs.NamaMahasiswa</td>
+                            <td>@mhs.Email</td>
+                            <td>@mhs.Angkatan</td>
+                            <td>@mhs.NamaDosenWali</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                                            @onclick="() => BukaDetailMahasiswa(mhs.MahasiswaId)">
+                                        Detail
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm"
+                                            @onclick="() => BukaFormEdit(mhs.MahasiswaId)">
+                                        Edit
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm"
+                                            @onclick="() => MintaKonfirmasiHapus(mhs)">
+                                        Hapus
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<MahasiswaModel> mahasiswaList = new();
+    private bool isLoading = true;
+    private bool isDeleting = false;
+    private string apiErrorMessage = string.Empty;
+    private string statusMessage = string.Empty;
+    private bool isErrorStatus = false;
+    private MahasiswaModel? mahasiswaYangAkanDihapus;
+
+    /// <summary>
+    /// Method lifecycle Blazor yang otomatis dijalankan ketika halaman daftar mahasiswa dibuka.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMahasiswaAsync();
+    }
+
+    /// <summary>
+    /// Memuat daftar mahasiswa beserta nama dosen walinya dari Web API.
+    /// </summary>
+    private async Task LoadMahasiswaAsync()
+    {
+        isLoading = true;
+        apiErrorMessage = string.Empty;
+
+        // Mengambil daftar mahasiswa melalui MahasiswaService yang memanggil GET /api/mahasiswa.
+        var result = await MahasiswaService.GetAllAsync();
+        if (result.Success && result.Data != null)
+        {
+            mahasiswaList = result.Data;
+        }
+        else
+        {
+            apiErrorMessage = result.Message;
+        }
+
+        isLoading = false;
+    }
+
+    /// <summary>
+    /// Mengarahkan pengguna ke halaman formulir penambahan mahasiswa baru.
+    /// </summary>
+    private void BukaFormTambah()
+    {
+        Navigation.NavigateTo("/mahasiswa/tambah");
+    }
+
+    /// <summary>
+    /// Mengarahkan pengguna ke halaman detail mahasiswa berdasarkan MahasiswaId.
+    /// </summary>
+    /// <param name="id">ID mahasiswa yang dipilih.</param>
+    private void BukaDetailMahasiswa(int id)
+    {
+        Navigation.NavigateTo($"/mahasiswa/detail/{id}");
+    }
+
+    /// <summary>
+    /// Mengarahkan pengguna ke halaman formulir edit mahasiswa berdasarkan MahasiswaId.
+    /// </summary>
+    /// <param name="id">ID mahasiswa yang akan diubah.</param>
+    private void BukaFormEdit(int id)
+    {
+        Navigation.NavigateTo($"/mahasiswa/edit/{id}");
+    }
+
+    /// <summary>
+    /// Menampilkan kotak konfirmasi sebelum menjalankan penghapusan data mahasiswa.
+    /// </summary>
+    /// <param name="mahasiswa">Data mahasiswa yang dipilih untuk dihapus.</param>
+    private void MintaKonfirmasiHapus(MahasiswaModel mahasiswa)
+    {
+        statusMessage = string.Empty;
+        mahasiswaYangAkanDihapus = mahasiswa;
+    }
+
+    /// <summary>
+    /// Membatalkan penghapusan mahasiswa dan menutup kotak konfirmasi.
+    /// </summary>
+    private void BatalHapusMahasiswa()
+    {
+        mahasiswaYangAkanDihapus = null;
+    }
+
+    /// <summary>
+    /// Menghapus data mahasiswa melalui Web API setelah pengguna mengonfirmasi,
+    /// kemudian memperbarui daftar mahasiswa pada tabel.
+    /// </summary>
+    private async Task KonfirmasiHapusMahasiswa()
+    {
+        if (mahasiswaYangAkanDihapus == null)
+        {
+            return;
+        }
+
+        isDeleting = true;
+        statusMessage = string.Empty;
+
+        var idHapus = mahasiswaYangAkanDihapus.MahasiswaId;
+        var result = await MahasiswaService.DeleteAsync(idHapus);
+
+        isDeleting = false;
+        mahasiswaYangAkanDihapus = null;
+
+        if (result.Success)
+        {
+            isErrorStatus = false;
+            statusMessage = result.Message;
+            // Memuat ulang daftar mahasiswa agar tabel menampilkan data terbaru.
+            await LoadMahasiswaAsync();
+        }
+        else
+        {
+            isErrorStatus = true;
+            statusMessage = result.Message;
+        }
+    }
+}

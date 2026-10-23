@@ -1,0 +1,6 @@
+@ProgMob_UTS.API_HostAddress = http://localhost:5008
+
+GET {{ProgMob_UTS.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

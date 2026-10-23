@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="ProgMob_UTS.API/ProgMob_UTS.API.csproj" />
+  <Project Path="ProgMob_UTS/ProgMob_UTS.csproj">
+    <Deploy Solution="Debug|*" />
+  </Project>
+</Solution>

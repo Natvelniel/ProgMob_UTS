@@ -1,0 +1,163 @@
+@page "/dosen/tambah"
+@page "/dosen/edit/{Id:int}"
+@inject DosenService DosenService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <h2 class="h4 mb-0">@(IsEditMode ? "Edit Data Dosen" : "Tambah Data Dosen")</h2>
+</div>
+
+<div class="section-panel" style="max-width: 600px;">
+    @if (isLoading)
+    {
+        <div class="py-3 text-muted">
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            Sedang memuat data dosen...
+        </div>
+    }
+    else if (isNotFound)
+    {
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" @onclick="KembaliKeDaftar">
+            Kembali ke Daftar Dosen
+        </button>
+    }
+    else
+    {
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger py-2" role="alert">
+                @errorMessage
+            </div>
+        }
+
+        <EditForm Model="formModel" OnValidSubmit="SimpanDosenAsync">
+            <DataAnnotationsValidator />
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold" for="nidnInput">NIDN</label>
+                <InputText id="nidnInput" class="form-control" @bind-Value="formModel.Nidn"
+                           placeholder="Contoh: 0512038801" disabled="@isSubmitting" />
+                <ValidationMessage For="@(() => formModel.Nidn)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold" for="namaDosenInput">Nama Dosen</label>
+                <InputText id="namaDosenInput" class="form-control" @bind-Value="formModel.NamaDosen"
+                           placeholder="Contoh: Dr. Strange, S.Kom., M.Cs." disabled="@isSubmitting" />
+                <ValidationMessage For="@(() => formModel.NamaDosen)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold" for="emailDosenInput">Email (@("@kampus.ac.id"))</label>
+                <InputText id="emailDosenInput" type="email" class="form-control" @bind-Value="formModel.Email"
+                           placeholder="Contoh: anita@kampus.ac.id" disabled="@isSubmitting" />
+                <ValidationMessage For="@(() => formModel.Email)" />
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-semibold" for="prodiInput">Program Studi</label>
+                <InputText id="prodiInput" class="form-control" @bind-Value="formModel.Prodi"
+                           placeholder="Contoh: Sistem Informasi" disabled="@isSubmitting" />
+                <ValidationMessage For="@(() => formModel.Prodi)" />
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                    @(isSubmitting ? "Menyimpan..." : "Simpan")
+                </button>
+                <button type="button" class="btn btn-outline-secondary" disabled="@isSubmitting" @onclick="KembaliKeDaftar">
+                    Batal
+                </button>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// Parameter rute opsional. Jika bernilai lebih dari 0, halaman berjalan dalam mode Edit.
+    /// </summary>
+    [Parameter]
+    public int? Id { get; set; }
+
+    private bool IsEditMode => Id.HasValue && Id.Value > 0;
+    private DosenModel formModel = new();
+    private bool isLoading = false;
+    private bool isSubmitting = false;
+    private bool isNotFound = false;
+    private string errorMessage = string.Empty;
+
+    /// <summary>
+    /// Memuat data dosen dari API apabila halaman dibuka dalam mode Edit.
+    /// </summary>
+    protected override async Task OnParametersSetAsync()
+    {
+        errorMessage = string.Empty;
+        isNotFound = false;
+
+        if (IsEditMode && Id.HasValue)
+        {
+            isLoading = true;
+            var result = await DosenService.GetByIdAsync(Id.Value);
+            if (result.Success && result.Data != null)
+            {
+                formModel = result.Data;
+            }
+            else
+            {
+                isNotFound = true;
+                errorMessage = result.Message;
+            }
+            isLoading = false;
+        }
+        else
+        {
+            formModel = new DosenModel();
+        }
+    }
+
+    /// <summary>
+    /// Menyimpan data dosen (POST untuk tambah baru atau PUT untuk pembaruan) ke Web API
+    /// ketika seluruh validasi formulir terpenuhi.
+    /// </summary>
+    private async Task SimpanDosenAsync()
+    {
+        // Menonaktifkan tombol Simpan selama request berlangsung untuk mencegah pengiriman ganda.
+        isSubmitting = true;
+        errorMessage = string.Empty;
+
+        ApiResult<DosenModel> result;
+        if (IsEditMode && Id.HasValue)
+        {
+            result = await DosenService.UpdateAsync(Id.Value, formModel);
+        }
+        else
+        {
+            result = await DosenService.CreateAsync(formModel);
+        }
+
+        isSubmitting = false;
+
+        if (result.Success)
+        {
+            // Kembali ke daftar dosen setelah penyimpanan berhasil.
+            Navigation.NavigateTo("/dosen");
+        }
+        else
+        {
+            // Menampilkan pesan kesalahan dari backend (mis. NIDN duplikat atau API tidak aktif).
+            errorMessage = result.Message;
+        }
+    }
+
+    /// <summary>
+    /// Membatalkan pengisian formulir dan kembali ke halaman daftar dosen.
+    /// </summary>
+    private void KembaliKeDaftar()
+    {
+        Navigation.NavigateTo("/dosen");
+    }
+}

@@ -1,0 +1,221 @@
+@page "/dosen"
+@inject DosenService DosenService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <h2 class="h4 mb-0">Data Dosen</h2>
+    <button type="button" class="btn btn-primary btn-sm" @onclick="BukaFormTambah">
+        + Tambah Dosen
+    </button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(statusMessage))
+{
+    <div class="alert @(isErrorStatus ? "alert-danger" : "alert-success") py-2" role="alert">
+        @statusMessage
+    </div>
+}
+
+@if (dosenYangAkanDihapus != null)
+{
+    <div class="confirm-box">
+        <p class="mb-2">
+            Apakah Anda yakin ingin menghapus dosen
+            <strong>@dosenYangAkanDihapus.NamaDosen</strong> (NIDN: <code>@dosenYangAkanDihapus.Nidn</code>)?
+        </p>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-danger btn-sm" disabled="@isDeleting" @onclick="KonfirmasiHapusDosen">
+                @(isDeleting ? "Menghapus..." : "Ya, Hapus")
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" disabled="@isDeleting" @onclick="BatalHapusDosen">
+                Batal
+            </button>
+        </div>
+    </div>
+}
+
+<div class="section-panel">
+    @if (isLoading)
+    {
+        <div class="py-3 text-muted">
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            Sedang memuat data dosen dari server API...
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(apiErrorMessage))
+    {
+        <div class="alert alert-danger mb-3" role="alert">
+            @apiErrorMessage
+        </div>
+        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="LoadDosenAsync">
+            Coba Muat Ulang
+        </button>
+    }
+    else if (dosenList.Count == 0)
+    {
+        <div class="py-3 text-muted">
+            Belum ada data dosen yang tersimpan. Silakan klik tombol <strong>Tambah Dosen</strong> untuk menambahkan data.
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>NIDN</th>
+                        <th>Nama Dosen</th>
+                        <th>Email</th>
+                        <th>Program Studi</th>
+                        <th style="width: 210px;">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var dosen in dosenList)
+                    {
+                        <tr>
+                            <td>@dosen.Nidn</td>
+                            <td>@dosen.NamaDosen</td>
+                            <td>@dosen.Email</td>
+                            <td>@dosen.Prodi</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                                            @onclick="() => BukaDetailDosen(dosen.DosenId)">
+                                        Detail
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm"
+                                            @onclick="() => BukaFormEdit(dosen.DosenId)">
+                                        Edit
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm"
+                                            @onclick="() => MintaKonfirmasiHapus(dosen)">
+                                        Hapus
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<DosenModel> dosenList = new();
+    private bool isLoading = true;
+    private bool isDeleting = false;
+    private string apiErrorMessage = string.Empty;
+    private string statusMessage = string.Empty;
+    private bool isErrorStatus = false;
+    private DosenModel? dosenYangAkanDihapus;
+
+    /// <summary>
+    /// Method lifecycle Blazor yang otomatis dijalankan saat halaman pertama kali dibuka.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDosenAsync();
+    }
+
+    /// <summary>
+    /// Memuat daftar dosen dari Web API untuk ditampilkan pada tabel halaman.
+    /// </summary>
+    private async Task LoadDosenAsync()
+    {
+        isLoading = true;
+        apiErrorMessage = string.Empty;
+
+        // Mengambil daftar dosen melalui DosenService yang terhubung ke /api/dosen.
+        var result = await DosenService.GetAllAsync();
+        if (result.Success && result.Data != null)
+        {
+            dosenList = result.Data;
+        }
+        else
+        {
+            apiErrorMessage = result.Message;
+        }
+
+        isLoading = false;
+    }
+
+    /// <summary>
+    /// Mengarahkan pengguna ke halaman formulir penambahan dosen baru.
+    /// </summary>
+    private void BukaFormTambah()
+    {
+        Navigation.NavigateTo("/dosen/tambah");
+    }
+
+    /// <summary>
+    /// Mengarahkan pengguna ke halaman detail dosen berdasarkan DosenId.
+    /// </summary>
+    /// <param name="id">ID dosen yang dipilih.</param>
+    private void BukaDetailDosen(int id)
+    {
+        Navigation.NavigateTo($"/dosen/detail/{id}");
+    }
+
+    /// <summary>
+    /// Mengarahkan pengguna ke halaman formulir edit dosen berdasarkan DosenId.
+    /// </summary>
+    /// <param name="id">ID dosen yang akan diubah.</param>
+    private void BukaFormEdit(int id)
+    {
+        Navigation.NavigateTo($"/dosen/edit/{id}");
+    }
+
+    /// <summary>
+    /// Menampilkan kotak konfirmasi penghapusan sebelum mengirimkan perintah DELETE ke API.
+    /// </summary>
+    /// <param name="dosen">Objek dosen yang dipilih untuk dihapus.</param>
+    private void MintaKonfirmasiHapus(DosenModel dosen)
+    {
+        statusMessage = string.Empty;
+        dosenYangAkanDihapus = dosen;
+    }
+
+    /// <summary>
+    /// Membatalkan proses penghapusan dosen dan menutup kotak konfirmasi.
+    /// </summary>
+    private void BatalHapusDosen()
+    {
+        dosenYangAkanDihapus = null;
+    }
+
+    /// <summary>
+    /// Menjalankan penghapusan dosen melalui API setelah pengguna memberikan konfirmasi,
+    /// lalu memperbarui daftar dosen atau menampilkan pesan penolakan (mis. jika masih menjadi dosen wali).
+    /// </summary>
+    private async Task KonfirmasiHapusDosen()
+    {
+        if (dosenYangAkanDihapus == null)
+        {
+            return;
+        }
+
+        isDeleting = true;
+        statusMessage = string.Empty;
+
+        var idHapus = dosenYangAkanDihapus.DosenId;
+        var result = await DosenService.DeleteAsync(idHapus);
+
+        isDeleting = false;
+        dosenYangAkanDihapus = null;
+
+        if (result.Success)
+        {
+            isErrorStatus = false;
+            statusMessage = result.Message;
+            // Memperbarui daftar dosen setelah operasi hapus berhasil.
+            await LoadDosenAsync();
+        }
+        else
+        {
+            isErrorStatus = true;
+            statusMessage = result.Message;
+        }
+    }
+}

@@ -1,0 +1,114 @@
+@page "/mahasiswa/detail/{Id:int}"
+@inject MahasiswaService MahasiswaService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <h2 class="h4 mb-0">Detail Mahasiswa</h2>
+</div>
+
+<div class="section-panel" style="max-width: 600px;">
+    @if (isLoading)
+    {
+        <div class="py-3 text-muted">
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            Sedang memuat detail mahasiswa...
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(errorMessage) || mahasiswa == null)
+    {
+        <div class="alert alert-danger" role="alert">
+            @(string.IsNullOrWhiteSpace(errorMessage) ? "Data mahasiswa tidak ditemukan." : errorMessage)
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" @onclick="KembaliKeDaftar">
+            Kembali ke Daftar Mahasiswa
+        </button>
+    }
+    else
+    {
+        <dl class="row mb-4">
+            <dt class="col-sm-4 text-muted">ID Mahasiswa</dt>
+            <dd class="col-sm-8">@mahasiswa.MahasiswaId</dd>
+
+            <dt class="col-sm-4 text-muted">NIM</dt>
+            <dd class="col-sm-8">@mahasiswa.Nim</dd>
+
+            <dt class="col-sm-4 text-muted">Nama Mahasiswa</dt>
+            <dd class="col-sm-8 fw-semibold">@mahasiswa.NamaMahasiswa</dd>
+
+            <dt class="col-sm-4 text-muted">Email</dt>
+            <dd class="col-sm-8">@mahasiswa.Email</dd>
+
+            <dt class="col-sm-4 text-muted">Angkatan</dt>
+            <dd class="col-sm-8">@mahasiswa.Angkatan</dd>
+
+            <dt class="col-sm-4 text-muted">Dosen Wali</dt>
+            <dd class="col-sm-8">@mahasiswa.NamaDosenWali (ID Dosen: @mahasiswa.DosenId)</dd>
+        </dl>
+
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-primary btn-sm" @onclick="BukaFormEdit">
+                Edit Data
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="KembaliKeDaftar">
+                Kembali ke Daftar
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// ID mahasiswa yang diambil dari parameter URL.
+    /// </summary>
+    [Parameter]
+    public int Id { get; set; }
+
+    private MahasiswaModel? mahasiswa;
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+
+    /// <summary>
+    /// Memuat data detail mahasiswa berdasarkan parameter Id saat halaman dibuka.
+    /// </summary>
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadDetailMahasiswaAsync();
+    }
+
+    /// <summary>
+    /// Mengambil data detail mahasiswa beserta nama dosen walinya dari endpoint GET /api/mahasiswa/{id}.
+    /// </summary>
+    private async Task LoadDetailMahasiswaAsync()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        var result = await MahasiswaService.GetByIdAsync(Id);
+        if (result.Success && result.Data != null)
+        {
+            mahasiswa = result.Data;
+        }
+        else
+        {
+            errorMessage = result.Message;
+        }
+
+        isLoading = false;
+    }
+
+    /// <summary>
+    /// Mengarahkan pengguna ke halaman edit untuk mahasiswa yang sedang ditampilkan.
+    /// </summary>
+    private void BukaFormEdit()
+    {
+        Navigation.NavigateTo($"/mahasiswa/edit/{Id}");
+    }
+
+    /// <summary>
+    /// Mengarahkan pengguna kembali ke halaman daftar mahasiswa.
+    /// </summary>
+    private void KembaliKeDaftar()
+    {
+        Navigation.NavigateTo("/mahasiswa");
+    }
+}

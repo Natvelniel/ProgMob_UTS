@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "New Profile",
+    "Projects": [
+      {
+        "Path": "ProgMob_UTS.API\\ProgMob_UTS.API.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "ProgMob_UTS\\ProgMob_UTS.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

@@ -1,0 +1,111 @@
+@page "/dosen/detail/{Id:int}"
+@inject DosenService DosenService
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <h2 class="h4 mb-0">Detail Dosen</h2>
+</div>
+
+<div class="section-panel" style="max-width: 600px;">
+    @if (isLoading)
+    {
+        <div class="py-3 text-muted">
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            Sedang memuat detail dosen...
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(errorMessage) || dosen == null)
+    {
+        <div class="alert alert-danger" role="alert">
+            @(string.IsNullOrWhiteSpace(errorMessage) ? "Data dosen tidak ditemukan." : errorMessage)
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" @onclick="KembaliKeDaftar">
+            Kembali ke Daftar Dosen
+        </button>
+    }
+    else
+    {
+        <dl class="row mb-4">
+            <dt class="col-sm-4 text-muted">ID Dosen</dt>
+            <dd class="col-sm-8">@dosen.DosenId</dd>
+
+            <dt class="col-sm-4 text-muted">NIDN</dt>
+            <dd class="col-sm-8">@dosen.Nidn</dd>
+
+            <dt class="col-sm-4 text-muted">Nama Dosen</dt>
+            <dd class="col-sm-8 fw-semibold">@dosen.NamaDosen</dd>
+
+            <dt class="col-sm-4 text-muted">Email</dt>
+            <dd class="col-sm-8">@dosen.Email</dd>
+
+            <dt class="col-sm-4 text-muted">Program Studi</dt>
+            <dd class="col-sm-8">@dosen.Prodi</dd>
+        </dl>
+
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-primary btn-sm" @onclick="BukaFormEdit">
+                Edit Data
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="KembaliKeDaftar">
+                Kembali ke Daftar
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// ID dosen yang diambil dari parameter URL.
+    /// </summary>
+    [Parameter]
+    public int Id { get; set; }
+
+    private DosenModel? dosen;
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+
+    /// <summary>
+    /// Memuat data detail dosen berdasarkan parameter Id saat halaman diinisialisasi.
+    /// </summary>
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadDetailDosenAsync();
+    }
+
+    /// <summary>
+    /// Mengambil data detail dosen dari endpoint GET /api/dosen/{id}.
+    /// </summary>
+    private async Task LoadDetailDosenAsync()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        var result = await DosenService.GetByIdAsync(Id);
+        if (result.Success && result.Data != null)
+        {
+            dosen = result.Data;
+        }
+        else
+        {
+            errorMessage = result.Message;
+        }
+
+        isLoading = false;
+    }
+
+    /// <summary>
+    /// Mengarahkan pengguna ke halaman edit untuk dosen yang sedang ditampilkan.
+    /// </summary>
+    private void BukaFormEdit()
+    {
+        Navigation.NavigateTo($"/dosen/edit/{Id}");
+    }
+
+    /// <summary>
+    /// Mengarahkan pengguna kembali ke halaman daftar dosen.
+    /// </summary>
+    private void KembaliKeDaftar()
+    {
+        Navigation.NavigateTo("/dosen");
+    }
+}

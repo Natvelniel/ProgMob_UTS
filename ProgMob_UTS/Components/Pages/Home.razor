@@ -1,0 +1,36 @@
+@page "/"
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <h2 class="h4 mb-0">Sistem Informasi Akademik Sederhana</h2>
+</div>
+
+<div class="section-panel">
+    <h3 class="h6 fw-semibold mb-3">Menu Navigasi Modul</h3>
+    <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-primary" @onclick="BukaModulDosen">
+            Kelola Data Dosen
+        </button>
+        <button type="button" class="btn btn-outline-primary" @onclick="BukaModulMahasiswa">
+            Kelola Data Mahasiswa
+        </button>
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// Mengarahkan pengguna ke halaman daftar data dosen.
+    /// </summary>
+    private void BukaModulDosen()
+    {
+        Navigation.NavigateTo("/dosen");
+    }
+
+    /// <summary>
+    /// Mengarahkan pengguna ke halaman daftar data mahasiswa.
+    /// </summary>
+    private void BukaModulMahasiswa()
+    {
+        Navigation.NavigateTo("/mahasiswa");
+    }
+}
