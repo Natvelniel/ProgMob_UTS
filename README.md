@@ -13,13 +13,14 @@ Aplikasi ini dirancang untuk membantu petugas administrasi akademik dalam memeli
 1. Menerapkan pemisahan tanggung jawab antara aplikasi *frontend* (.NET MAUI Blazor Hybrid), *backend* (ASP.NET Core Web API), dan *database* (SQLite) dalam satu solution `.NET`.
 2. Menyediakan operasi CRUD (*Create, Read, Update, Delete*) lengkap untuk entitas **Dosen** dan **Mahasiswa**.
 3. Mengimplementasikan relasi *one-to-many* menggunakan Entity Framework Core di mana satu dosen dapat menjadi dosen wali bagi banyak mahasiswa, dan setiap mahasiswa wajib memiliki satu dosen wali.
-4. Menerapkan validasi input dan aturan bisnis akademik (seperti keunikan NIDN/NIM, validasi rentang angkatan 2020–2026, serta penolakan penghapusan dosen yang masih menjadi dosen wali mahasiswa).
+4. Menerapkan validasi input dan aturan bisnis akademik (seperti keunikan NIDN/NIM, validasi domain email `@kampus.ac.id` dan `@student.kampus.ac.id`, validasi rentang angkatan 2020–2026, serta penolakan penghapusan dosen yang masih menjadi dosen wali mahasiswa).
 
 ---
 
 ## 3. Daftar Fitur Wajib
 
 ### A. Modul Dosen
+
 - Menampilkan daftar seluruh dosen (NIDN, Nama Dosen, Email, Program Studi).
 - Menambahkan data dosen baru dengan validasi kelengkapan field, format email, domain wajib `@kampus.ac.id`, dan keunikan NIDN.
 - Melihat detail lengkap data dosen.
@@ -27,6 +28,7 @@ Aplikasi ini dirancang untuk membantu petugas administrasi akademik dalam memeli
 - Menghapus data dosen dengan konfirmasi penghapusan (ditolak secara otomatis dengan pesan yang jelas apabila dosen tersebut masih terdaftar sebagai dosen wali mahasiswa).
 
 ### B. Modul Mahasiswa
+
 - Menampilkan daftar seluruh mahasiswa beserta **Nama Dosen Wali** hasil proyeksi relasi dari backend.
 - Menambahkan data mahasiswa baru dengan validasi NIM unik, rentang angkatan `2020–2026`, domain email wajib `@student.kampus.ac.id`, serta pilihan **Dropdown Dosen Wali** yang diambil secara dinamis dari endpoint API Dosen (`/api/dosen`).
 - Melihat detail lengkap data mahasiswa beserta identitas dosen walinya.
@@ -34,6 +36,7 @@ Aplikasi ini dirancang untuk membantu petugas administrasi akademik dalam memeli
 - Menghapus data mahasiswa dengan konfirmasi penghapusan.
 
 ### C. Perilaku Antarmuka & Penanganan Kesalahan
+
 - Indikator *loading* saat memuat atau menyimpan data.
 - Informasi yang jelas apabila data kosong atau apabila server API belum dijalankan / tidak dapat dihubungi.
 - Tombol **Simpan** dinonaktifkan selama proses pengiriman berlangsung untuk mencegah pengiriman ganda.
@@ -44,7 +47,7 @@ Aplikasi ini dirancang untuk membantu petugas administrasi akademik dalam memeli
 ## 4. Teknologi yang Digunakan
 
 | Komponen | Teknologi |
-|---|---|
+| :--- | :--- |
 | **Frontend** | .NET MAUI Blazor Hybrid (`net10.0-windows10.0.19041.0`, `net10.0-android`, `net10.0-ios`, `net10.0-maccatalyst`) |
 | **Backend** | ASP.NET Core Web API (`net10.0`) |
 | **Bahasa Pemrograman** | C# |
@@ -59,28 +62,14 @@ Aplikasi ini dirancang untuk membantu petugas administrasi akademik dalam memeli
 
 Aplikasi menggunakan arsitektur tiga lapis (*three-tier architecture*):
 
-```text
-+-------------------------------------------------------+
-| Frontend: ProgMob_UTS (.NET MAUI Blazor Hybrid)       |
-| - Komponen Razor (Beranda, Modul Dosen, Mahasiswa)    |
-| - DosenService & MahasiswaService (HttpClient)        |
-+-------------------------------------------------------+
-                           |
-                           | HTTP / JSON (REST API)
-                           v
-+-------------------------------------------------------+
-| Backend: ProgMob_UTS.API (ASP.NET Core Web API)       |
-| - DosenController (/api/dosen)                        |
-| - MahasiswaController (/api/mahasiswa)                |
-| - Validasi Request, Aturan Bisnis, & Proyeksi DTO     |
-+-------------------------------------------------------+
-                           |
-                           | Entity Framework Core
-                           v
-+-------------------------------------------------------+
-| Database: SQLite (academic.db)                        |
-| - Tabel Dosen (1) <-----> (N) Tabel Mahasiswa         |
-+-------------------------------------------------------+
+```mermaid
+flowchart TB
+    Frontend["Frontend: ProgMob_UTS (.NET MAUI Blazor Hybrid)<br/>- Komponen Razor (Beranda, Dosen, Mahasiswa)<br/>- DosenService & MahasiswaService (HttpClient)"]
+    Backend["Backend: ProgMob_UTS.API (ASP.NET Core Web API)<br/>- DosenController (/api/dosen)<br/>- MahasiswaController (/api/mahasiswa)<br/>- Validasi Request, Aturan Bisnis, & Proyeksi DTO"]
+    Database[("Database: SQLite (academic.db)<br/>Tabel Dosen (1) <---> (N) Tabel Mahasiswa")]
+
+    Frontend -- "HTTP / JSON (REST API)" --> Backend
+    Backend -- "Entity Framework Core" --> Database
 ```
 
 > **Catatan Penting:** Proyek *frontend* (`ProgMob_UTS`) sama sekali tidak mengakses database SQLite secara langsung, melainkan hanya berkomunikasi dengan *backend* (`ProgMob_UTS.API`) melalui `HttpClient`.
@@ -91,65 +80,65 @@ Aplikasi menggunakan arsitektur tiga lapis (*three-tier architecture*):
 
 ```text
 ProgMob_UTS/ (Root Solution Directory)
-├── ProgMob_UTS.slnx                         # File Solution .NET
-├── README.md                                # Dokumentasi Teknis Proyek
-├── LEARNING_GUIDE.md                        # Dokumentasi Pembelajaran & Bedah Kode Lengkap
-│
-├── ProgMob_UTS.API/                         # Proyek Backend (ASP.NET Core Web API)
-│   ├── Controllers/
-│   │   ├── DosenController.cs               # Endpoint CRUD Dosen (/api/dosen)
-│   │   └── MahasiswaController.cs           # Endpoint CRUD Mahasiswa (/api/mahasiswa)
-│   ├── Data/
-│   │   └── AcademicDbContext.cs             # DbContext, Relasi One-to-Many, & Data Seeding
-│   ├── DTOs/
-│   │   ├── DosenDto.cs                      # DTO Request & Response Dosen
-│   │   └── MahasiswaDto.cs                  # DTO Request & Response Mahasiswa (+ NamaDosenWali)
-│   ├── Models/
-│   │   ├── Dosen.cs                         # Entitas Tabel Dosen
-│   │   └── Mahasiswa.cs                     # Entitas Tabel Mahasiswa
-│   ├── Validation/
-│   │   └── AllowedEmailDomainAttribute.cs   # Custom Validator domain email (@kampus.ac.id / @student.kampus.ac.id)
-│   ├── Migrations/                          # File EF Core Migration (InitialCreate)
-│   ├── Properties/
-│   │   └── launchSettings.json              # Konfigurasi port lokal (http://localhost:5008)
-│   ├── appsettings.json                     # Konfigurasi Connection String SQLite
-│   ├── Program.cs                           # Konfigurasi Layanan, Swagger, & Migrasi Otomatis
-│   └── ProgMob_UTS.API.csproj
-│
-└── ProgMob_UTS/                             # Proyek Frontend (.NET MAUI Blazor Hybrid)
-    ├── Components/
-    │   ├── Layout/
-    │   │   ├── MainLayout.razor             # Layout utama aplikasi
-    │   │   └── NavMenu.razor                # Menu navigasi (Beranda, Data Dosen, Data Mahasiswa)
-    │   ├── Pages/
-    │   │   ├── Home.razor                   # Halaman Beranda
-    │   │   ├── NotFound.razor               # Halaman rute tidak ditemukan
-    │   │   ├── Dosen/
-    │   │   │   ├── DosenIndex.razor         # Daftar & Hapus Dosen
-    │   │   │   ├── DosenForm.razor          # Form Tambah & Edit Dosen
-    │   │   │   └── DosenDetail.razor        # Detail Dosen
-    │   │   └── Mahasiswa/
-    │   │       ├── MahasiswaIndex.razor     # Daftar & Hapus Mahasiswa
-    │   │       ├── MahasiswaForm.razor      # Form Tambah & Edit Mahasiswa (+ Dropdown Dosen Wali)
-    │   │       └── MahasiswaDetail.razor    # Detail Mahasiswa
-    │   ├── Routes.razor
-    │   └── _Imports.razor
-    ├── Models/
-    │   ├── ApiResult.cs                     # Pembungkus hasil operasi API & parser pesan error
-    │   ├── DosenModel.cs                    # Model & validasi form Dosen di frontend
-    │   └── MahasiswaModel.cs                # Model & validasi form Mahasiswa di frontend
-    ├── Services/
-    │   ├── DosenService.cs                  # Service HttpClient untuk /api/dosen
-    │   └── MahasiswaService.cs              # Service HttpClient untuk /api/mahasiswa
-    ├── Validation/
-    │   └── AllowedEmailDomainAttribute.cs   # Custom Validator domain email pada form Blazor
-    ├── wwwroot/
-    │   ├── app.css                          # Styling bersih & minimalis
-    │   └── index.html
-    ├── App.xaml / App.xaml.cs
-    ├── MainPage.xaml / MainPage.xaml.cs
-    ├── MauiProgram.cs                       # Registrasi DI HttpClient & Services
-    └── ProgMob_UTS.csproj
+|-- ProgMob_UTS.slnx                         # File Solution .NET
+|-- README.md                                # Dokumentasi Teknis Proyek
+|-- LEARNING_GUIDE.md                        # Dokumentasi Pembelajaran & Bedah Kode Lengkap
+|
+|-- ProgMob_UTS.API/                         # Proyek Backend (ASP.NET Core Web API)
+|   |-- Controllers/
+|   |   |-- DosenController.cs               # Endpoint CRUD Dosen (/api/dosen)
+|   |   \-- MahasiswaController.cs           # Endpoint CRUD Mahasiswa (/api/mahasiswa)
+|   |-- Data/
+|   |   \-- AcademicDbContext.cs             # DbContext, Relasi One-to-Many, & Data Seeding
+|   |-- DTOs/
+|   |   |-- DosenDto.cs                      # DTO Request & Response Dosen
+|   |   \-- MahasiswaDto.cs                  # DTO Request & Response Mahasiswa (+ NamaDosenWali)
+|   |-- Models/
+|   |   |-- Dosen.cs                         # Entitas Tabel Dosen
+|   |   \-- Mahasiswa.cs                     # Entitas Tabel Mahasiswa
+|   |-- Validation/
+|   |   \-- AllowedEmailDomainAttribute.cs   # Custom Validator domain email (@kampus.ac.id / @student.kampus.ac.id)
+|   |-- Migrations/                          # File EF Core Migration (InitialCreate)
+|   |-- Properties/
+|   |   \-- launchSettings.json              # Konfigurasi port lokal (http://localhost:5008)
+|   |-- appsettings.json                     # Konfigurasi Connection String SQLite
+|   |-- Program.cs                           # Konfigurasi Layanan, Swagger, & Migrasi Otomatis
+|   \-- ProgMob_UTS.API.csproj
+|
+\-- ProgMob_UTS/                             # Proyek Frontend (.NET MAUI Blazor Hybrid)
+    |-- Components/
+    |   |-- Layout/
+    |   |   |-- MainLayout.razor             # Layout utama aplikasi
+    |   |   \-- NavMenu.razor                # Menu navigasi (Beranda, Data Dosen, Data Mahasiswa)
+    |   |-- Pages/
+    |   |   |-- Home.razor                   # Halaman Beranda
+    |   |   |-- NotFound.razor               # Halaman rute tidak ditemukan
+    |   |   |-- Dosen/
+    |   |   |   |-- DosenIndex.razor         # Daftar & Hapus Dosen
+    |   |   |   |-- DosenForm.razor          # Form Tambah & Edit Dosen
+    |   |   |   \-- DosenDetail.razor        # Detail Dosen
+    |   |   \-- Mahasiswa/
+    |   |       |-- MahasiswaIndex.razor     # Daftar & Hapus Mahasiswa
+    |   |       |-- MahasiswaForm.razor      # Form Tambah & Edit Mahasiswa (+ Dropdown Dosen Wali)
+    |   |       \-- MahasiswaDetail.razor    # Detail Mahasiswa
+    |   |-- Routes.razor
+    |   \-- _Imports.razor
+    |-- Models/
+    |   |-- ApiResult.cs                     # Pembungkus hasil operasi API & parser pesan error
+    |   |-- DosenModel.cs                    # Model & validasi form Dosen di frontend
+    |   \-- MahasiswaModel.cs                # Model & validasi form Mahasiswa di frontend
+    |-- Services/
+    |   |-- DosenService.cs                  # Service HttpClient untuk /api/dosen
+    |   \-- MahasiswaService.cs              # Service HttpClient untuk /api/mahasiswa
+    |-- Validation/
+    |   \-- AllowedEmailDomainAttribute.cs   # Custom Validator domain email pada form Blazor
+    |-- wwwroot/
+    |   |-- app.css                          # Styling bersih & minimalis
+    |   \-- index.html
+    |-- App.xaml / App.xaml.cs
+    |-- MainPage.xaml / MainPage.xaml.cs
+    |-- MauiProgram.cs                       # Registrasi DI HttpClient & Services
+    \-- ProgMob_UTS.csproj
 ```
 
 ---
@@ -157,19 +146,25 @@ ProgMob_UTS/ (Root Solution Directory)
 ## 7. Persyaratan Instalasi
 
 Sebelum menjalankan proyek ini pada komputer lokal, pastikan perangkat berikut telah terpasang:
-1. **.NET SDK 10.0** (diuji menggunakan `.NET SDK 10.0.401`).
-   Periksa dengan perintah:
+
+1. **.NET SDK 10.0** (diuji menggunakan `.NET SDK 10.0.401`). Periksa dengan perintah:
+
    ```powershell
    dotnet --version
    ```
+
 2. **Workload .NET MAUI** (minimal `maui-windows` untuk menjalankan pada Windows Desktop, atau `android` untuk emulator Android):
+
    ```powershell
    dotnet workload list
    ```
+
 3. **EF Core CLI Tool (`dotnet-ef`)** (opsional jika ingin menjalankan perintah migrasi manual):
+
    ```powershell
    dotnet tool install --global dotnet-ef
    ```
+
 4. **Visual Studio 2022 / 2026** (dengan workload *.NET Multi-platform App UI development* dan *ASP.NET and web development*) atau terminal PowerShell / Command Prompt.
 
 ---
@@ -177,7 +172,9 @@ Sebelum menjalankan proyek ini pada komputer lokal, pastikan perangkat berikut t
 ## 8. Cara Mengonfigurasi Connection String SQLite dan Alamat API
 
 ### A. Konfigurasi Connection String SQLite (Backend)
+
 Connection string dikonfigurasi pada file `ProgMob_UTS.API/appsettings.json`:
+
 ```json
 {
   "ConnectionStrings": {
@@ -185,15 +182,19 @@ Connection string dikonfigurasi pada file `ProgMob_UTS.API/appsettings.json`:
   }
 }
 ```
+
 File database `academic.db` akan otomatis dibuat di dalam folder kerja `ProgMob_UTS.API`.
 
 ### B. Konfigurasi Alamat Web API (Frontend)
+
 Alamat dasar (*BaseAddress*) API dikonfigurasi pada file `ProgMob_UTS/MauiProgram.cs`:
+
 ```csharp
 var apiBaseUrl = DeviceInfo.Platform == DevicePlatform.Android
     ? "http://10.0.2.2:5008/"
     : "http://localhost:5008/";
 ```
+
 - Jika dijalankan pada **Windows** atau **MacCatalyst**, aplikasi menggunakan `http://localhost:5008/`.
 - Jika dijalankan pada **Android Emulator**, aplikasi otomatis menggunakan `http://10.0.2.2:5008/` yang mengarah ke `localhost` komputer host.
 - Pastikan port tersebut sesuai dengan `applicationUrl` pada `ProgMob_UTS.API/Properties/launchSettings.json` (`http://localhost:5008`).
@@ -204,13 +205,14 @@ var apiBaseUrl = DeviceInfo.Platform == DevicePlatform.Android
 
 Migration awal (`InitialCreate`) sudah disertakan di dalam folder `ProgMob_UTS.API/Migrations/`. Selain itu, pada `ProgMob_UTS.API/Program.cs` telah ditambahkan perintah `dbContext.Database.Migrate()` sehingga **database dan data awal otomatis dibuat saat backend dijalankan**.
 
-Jika Anda ingin menjalankan atau menerapkan migration secara manual pada komputer baru melalui terminal, jalankan perintah berikut dari root folder solution (`c:\Users\Asus\source\repos\ProgMob_UTS`):
+Jika Anda ingin menjalankan atau menerapkan migration secara manual pada komputer baru melalui terminal, jalankan perintah berikut dari root folder solution:
 
 ```powershell
 dotnet ef database update --project ProgMob_UTS.API
 ```
 
 Jika ingin membuat ulang database dari kondisi kosong:
+
 ```powershell
 dotnet ef database drop --project ProgMob_UTS.API --force
 dotnet ef database update --project ProgMob_UTS.API
@@ -222,25 +224,22 @@ dotnet ef database update --project ProgMob_UTS.API
 
 > **PENTING:** Jalankan proyek **Backend (`ProgMob_UTS.API`) terlebih dahulu** sebelum membuka dan menggunakan aplikasi Frontend (`ProgMob_UTS`).
 
-Buka terminal pada root folder solution (`c:\Users\Asus\source\repos\ProgMob_UTS`), lalu jalankan:
+Buka terminal pada root folder solution, lalu jalankan:
 
 ```powershell
 dotnet run --project ProgMob_UTS.API --launch-profile http
 ```
 
 Server API akan aktif dan mendengarkan pada alamat:
-- Base URL API: `http://localhost:5008`
-- Swagger UI: `http://localhost:5008/swagger`
+- **Base URL API:** `http://localhost:5008`
+- **Swagger UI:** `http://localhost:5008/swagger`
 
 ---
 
 ## 11. Cara Menguji Endpoint Melalui Swagger
 
 1. Pastikan backend sedang berjalan (`dotnet run --project ProgMob_UTS.API --launch-profile http`).
-2. Buka browser dan akses alamat:
-   ```text
-   http://localhost:5008/swagger
-   ```
+2. Buka browser dan akses alamat `http://localhost:5008/swagger`.
 3. Anda akan melihat dua grup endpoint utama: **Dosen** (`/api/dosen`) dan **Mahasiswa** (`/api/mahasiswa`).
 4. Klik salah satu endpoint (misalnya `GET /api/dosen`), klik tombol **Try it out**, lalu klik **Execute** untuk melihat respons JSON beserta kode status HTTP-nya.
 
@@ -251,13 +250,16 @@ Server API akan aktif dan mendengarkan pada alamat:
 Pastikan backend sudah berjalan di terminal pertama. Selanjutnya, Anda dapat menjalankan frontend dengan salah satu cara berikut:
 
 ### Opsi A: Melalui Terminal CLI (Windows Desktop)
+
 Buka terminal kedua pada root folder solution, lalu jalankan:
+
 ```powershell
 dotnet build ProgMob_UTS/ProgMob_UTS.csproj -f net10.0-windows10.0.19041.0
 dotnet run --project ProgMob_UTS/ProgMob_UTS.csproj -f net10.0-windows10.0.19041.0
 ```
 
 ### Opsi B: Melalui Visual Studio
+
 1. Buka file `ProgMob_UTS.slnx` di Visual Studio.
 2. Klik kanan pada Solution -> **Configure Startup Projects...** -> pilih **Multiple startup projects**, lalu atur `ProgMob_UTS.API` dan `ProgMob_UTS` menjadi **Start** (atau jalankan `ProgMob_UTS.API` terlebih dahulu, kemudian jalankan `ProgMob_UTS` dengan target **Windows Machine**).
 
@@ -268,7 +270,7 @@ dotnet run --project ProgMob_UTS/ProgMob_UTS.csproj -f net10.0-windows10.0.19041
 ### Endpoint Dosen (`/api/dosen`)
 
 | Method | Endpoint | Fungsi | Status Sukses | Status Gagal |
-|---|---|---|---|---|
+| :--- | :--- | :--- | :--- | :--- |
 | `GET` | `/api/dosen` | Mengambil seluruh daftar dosen | `200 OK` | - |
 | `GET` | `/api/dosen/{id}` | Mengambil detail dosen berdasarkan ID | `200 OK` | `404 Not Found` |
 | `POST` | `/api/dosen` | Menambahkan data dosen baru | `201 Created` | `400 Bad Request`, `409 Conflict` (NIDN duplikat) |
@@ -278,7 +280,7 @@ dotnet run --project ProgMob_UTS/ProgMob_UTS.csproj -f net10.0-windows10.0.19041
 ### Endpoint Mahasiswa (`/api/mahasiswa`)
 
 | Method | Endpoint | Fungsi | Status Sukses | Status Gagal |
-|---|---|---|---|---|
+| :--- | :--- | :--- | :--- | :--- |
 | `GET` | `/api/mahasiswa` | Mengambil seluruh mahasiswa beserta `namaDosenWali` | `200 OK` | - |
 | `GET` | `/api/mahasiswa/{id}` | Mengambil detail mahasiswa beserta `namaDosenWali` | `200 OK` | `404 Not Found` |
 | `POST` | `/api/mahasiswa` | Menambahkan data mahasiswa baru | `201 Created` | `400 Bad Request` (input/DosenId tidak valid), `409 Conflict` (NIM duplikat) |
@@ -290,23 +292,26 @@ dotnet run --project ProgMob_UTS/ProgMob_UTS.csproj -f net10.0-windows10.0.19041
 ## 14. Penjelasan Model Dosen, Mahasiswa, dan Relasinya
 
 ### Entitas `Dosen`
+
 - `DosenId` (`int`): Primary key, *auto-increment*.
 - `Nidn` (`string`): Wajib diisi, unik (memiliki *unique index* `IX_Dosen_Nidn`), maksimal 20 karakter.
 - `NamaDosen` (`string`): Wajib diisi, maksimal 100 karakter.
-- `Email` (`string`): Wajib diisi, format email valid, wajib menggunakan domain `@kampus.ac.id`, maksimal 100 karakter.
+- `Email` (`string`): Wajib diisi, format email valid, wajib menggunakan domain `@kampus.ac.id` (`AllowedEmailDomainAttribute`), maksimal 100 karakter.
 - `Prodi` (`string`): Wajib diisi, maksimal 100 karakter.
 - `MahasiswaBimbingan` (`ICollection<Mahasiswa>`): Properti navigasi daftar mahasiswa bimbingan.
 
 ### Entitas `Mahasiswa`
+
 - `MahasiswaId` (`int`): Primary key, *auto-increment*.
 - `Nim` (`string`): Wajib diisi, unik (memiliki *unique index* `IX_Mahasiswa_Nim`), maksimal 20 karakter.
 - `NamaMahasiswa` (`string`): Wajib diisi, maksimal 100 karakter.
-- `Email` (`string`): Wajib diisi, format email valid, wajib menggunakan domain `@student.kampus.ac.id`, maksimal 100 karakter.
+- `Email` (`string`): Wajib diisi, format email valid, wajib menggunakan domain `@student.kampus.ac.id` (`AllowedEmailDomainAttribute`), maksimal 100 karakter.
 - `Angkatan` (`int`): Wajib diisi, berada pada rentang `2020` hingga `2026`.
 - `DosenId` (`int`): Foreign key wajib yang merujuk pada `Dosen.DosenId`.
 - `DosenWali` (`Dosen?`): Properti navigasi ke objek dosen wali.
 
 ### Relasi Database (One-to-Many)
+
 - **Dosen (1) ---- (N) Mahasiswa**
 - Dikonfigurasi pada `AcademicDbContext.OnModelCreating` menggunakan Fluent API dengan `OnDelete(DeleteBehavior.Restrict)`.
 - Pada endpoint `GET /api/mahasiswa`, data diproyeksikan menggunakan LINQ `.Select()` ke `MahasiswaDto` yang menyertakan properti `NamaDosenWali` sehingga terhindar dari perulangan objek JSON (*circular reference*).
@@ -320,15 +325,17 @@ Aplikasi ini **tidak menggunakan sistem login/autentikasi** sesuai batasan ruang
 Database telah dilengkapi dengan data awal (*seed data*) yang terdiri atas **3 Dosen** dan **5 Mahasiswa**:
 
 ### Data Awal Dosen
+
 | DosenId | NIDN | Nama Dosen | Email | Program Studi |
-|---|---|---|---|---|
+| :--- | :--- | :--- | :--- | :--- |
 | 1 | `0512038801` | Dr. Anita Wijaya, S.Kom., M.Cs. | `anita.wijaya@kampus.ac.id` | Sistem Informasi |
 | 2 | `0524078502` | Ir. Bambang Pratama, M.Kom. | `bambang.pratama@kampus.ac.id` | Informatika |
 | 3 | `0509119003` | Siti Rahmawati, S.Kom., M.T. | `siti.rahmawati@kampus.ac.id` | Sistem Informasi |
 
 ### Data Awal Mahasiswa
+
 | MahasiswaId | NIM | Nama Mahasiswa | Email | Angkatan | DosenId (Dosen Wali) |
-|---|---|---|---|---|---|
+| :--- | :--- | :--- | :--- | :--- | :--- |
 | 1 | `72230001` | Budi Santoso | `budi.santoso@student.kampus.ac.id` | 2023 | 1 (Dr. Anita Wijaya, S.Kom., M.Cs.) |
 | 2 | `72230002` | Clara Kusuma | `clara.kusuma@student.kampus.ac.id` | 2023 | 1 (Dr. Anita Wijaya, S.Kom., M.Cs.) |
 | 3 | `71220003` | Dimas Saputra | `dimas.saputra@student.kampus.ac.id` | 2022 | 2 (Ir. Bambang Pratama, M.Kom.) |
@@ -342,7 +349,7 @@ Database telah dilengkapi dengan data awal (*seed data*) yang terdiri atas **3 D
 Berikut adalah daftar skenario pengujian minimum yang telah diverifikasi:
 
 | Kode | Skenario Pengujian | Langkah Pengujian | Hasil yang Diharapkan | Status |
-|---|---|---|---|---|
+| :--- | :--- | :--- | :--- | :--- |
 | **T01** | Menambah dosen dengan data valid | Kirim data dosen baru dengan NIDN unik, nama, email `@kampus.ac.id`, dan prodi | Status `201 Created`, data tersimpan di SQLite dan tampil pada daftar dosen | Terverifikasi |
 | **T02** | Menolak dosen dengan format/domain email tidak valid | Isi email tanpa format yang benar (`email-salah`), domain luar (`anita@gmail.com`), atau domain mahasiswa (`anita@student.kampus.ac.id`) | Validasi `AllowedEmailDomainAttribute` menolak penyimpanan (`400 Bad Request` pada API / pesan validasi pada form) | Terverifikasi |
 | **T03** | Menolak NIDN duplikat | Tambah dosen dengan NIDN `0512038801` yang sudah terdaftar | API mengembalikan `409 Conflict` dengan pesan bahwa NIDN sudah terdaftar | Terverifikasi |
@@ -383,5 +390,3 @@ Berikut adalah daftar skenario pengujian minimum yang telah diverifikasi:
    - .NET 10 SDK & CLI (`dotnet`, `dotnet-ef`)
    - Swashbuckle.AspNetCore (Swagger UI)
    - AI Coding Assistant (Google DeepMind Antigravity) untuk membantu penyusunan struktur kode, komentar dokumentasi XML Bahasa Indonesia, pengujian skenario endpoint, dan penyusunan dokumentasi README.
-#   P r o g M o b _ U T S  
- 
